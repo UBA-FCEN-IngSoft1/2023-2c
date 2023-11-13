@@ -8,7 +8,7 @@ Pre-requisitos:
 - Ver que el test corre
 
 Requerimientos:
-- Testear que realmente esté funcionando bien la importación de clientes (hay 2 errores a descubrir y arreglar)
+- Testear que realmente esté funcionando bien la importación de clientes, o sea que hayan dos clientes en la base y que el primero tenga sus dos direcciones y el segundo su dirección (hay 2 errores a descubrir y arreglar)
 - Desacoplar la importación del archivo 'input.txt' para que se pueda importar desde cualquier tipo de stream, en particular desde un stream de un string.
 - La importación no debe quedar en el test, debe quedar en un method object
 - El test debe quedar bien declarativo y fácil de entender
@@ -16,11 +16,16 @@ Requerimientos:
 
 Recordar:
 - setUp se evalúa antes de correr cada test
-- tearDown se evalúa despues de correr cada test
+- tearDown se evalúa después de correr cada test
 
 Base de datos:
 - Se está simulando una base de datos con la clase DataBaseSession
-- Deben usar los mensajes select: aCondition ofType: aType y selectAllOfType: aType para buscar objetos en la base
+- Deben usar los mensajes select: aCondition ofType: aType y selectAllOfType: aType para buscar objetos en la base.
+  Por ejemplo:
+  session 
+     select: [ :aCustomer | aCustomer identificationType = 'D' and: [ aCustomer identificationNumber = '22333444' ]]
+     ofType: Customer.
+  Devuelve todos los clientes que cumplan con esa condición.
 - persist: se debe utilizar para grabar en la base de datos
 - beginTransaction se utiliza para iniciar una transacción (no hay transacciones reales, es solo una simulación)
 - commit se utilizar para terminar una transacción
@@ -31,5 +36,5 @@ Refactorings a Utilizar:
 - Extract as parameter
 - Add Parameter (posiblemente)
 - Extract to method object
-- Inline temporary (deben seleccionar todo el nombre de la variable porque se produce un error sino)
+- Inline temporary 
 - Inline Method

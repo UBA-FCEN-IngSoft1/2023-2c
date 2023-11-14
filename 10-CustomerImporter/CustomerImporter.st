@@ -40,7 +40,7 @@ on: aSession from: aNonPersistentSet
 
 !classDefinition: #ImportTest category: #CustomerImporter!
 TestCase subclass: #ImportTest
-	instanceVariableNames: 'session'
+	instanceVariableNames: ''
 	classVariableNames: ''
 	poolDictionaries: ''
 	category: 'CustomerImporter'!

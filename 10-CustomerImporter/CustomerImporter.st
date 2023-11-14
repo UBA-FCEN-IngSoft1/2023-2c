@@ -1,17 +1,57 @@
-!classDefinition: #ImportTest category: 'CustomerImporter'!
-TestCase subclass: #ImportTest
-	instanceVariableNames: ''
+!classDefinition: #PersistentSet category: #CustomerImporter!
+Set subclass: #PersistentSet
+	instanceVariableNames: 'session'
 	classVariableNames: ''
 	poolDictionaries: ''
 	category: 'CustomerImporter'!
 
-!ImportTest methodsFor: 'as yet unclassified' stamp: 'NR 6/22/2023 15:23:45'!
+!PersistentSet methodsFor: 'initialization' stamp: 'HAW 11/14/2023 08:25:31'!
+initializeOn: aSession from: aNonPersistentSet
+
+	session := aSession.
+	self addAll: aNonPersistentSet ! !
+
+
+!PersistentSet methodsFor: 'adding' stamp: 'HAW 11/14/2023 08:23:40'!
+add: newObject
+
+	super add: newObject.
+	session persist: newObject.
+	
+	^newObject! !
+
+"-- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- "!
+
+!classDefinition: 'PersistentSet class' category: #CustomerImporter!
+PersistentSet class
+	instanceVariableNames: ''!
+
+!PersistentSet class methodsFor: 'instance creation' stamp: 'HAW 11/14/2023 08:24:32'!
+on: aSession
+
+	^self on: aSession from: #()! !
+
+!PersistentSet class methodsFor: 'instance creation' stamp: 'HAW 11/14/2023 08:25:00'!
+on: aSession from: aNonPersistentSet
+
+	^self new initializeOn: aSession from: aNonPersistentSet
+! !
+
+
+!classDefinition: #ImportTest category: #CustomerImporter!
+TestCase subclass: #ImportTest
+	instanceVariableNames: 'session'
+	classVariableNames: ''
+	poolDictionaries: ''
+	category: 'CustomerImporter'!
+
+!ImportTest methodsFor: 'test' stamp: 'NR 6/22/2023 15:23:45'!
 test01Import
 
 	Customer importCustomers ! !
 
 
-!classDefinition: #Address category: 'CustomerImporter'!
+!classDefinition: #Address category: #CustomerImporter!
 Object subclass: #Address
 	instanceVariableNames: 'id streetName streetNumber town zipCode province'
 	classVariableNames: ''
@@ -73,7 +113,7 @@ zipCode: aZipCode
 	zipCode := aZipCode! !
 
 
-!classDefinition: #Customer category: 'CustomerImporter'!
+!classDefinition: #Customer category: #CustomerImporter!
 Object subclass: #Customer
 	instanceVariableNames: 'id firstName lastName identificationType identificationNumber addresses'
 	classVariableNames: ''
@@ -134,15 +174,15 @@ identificationType: anIdentificationType
 	identificationType := anIdentificationType! !
 
 
-!Customer methodsFor: 'initialization' stamp: 'HAW 5/22/2022 00:19:29'!
+!Customer methodsFor: 'initialization' stamp: 'HAW 11/14/2023 08:25:42'!
 initialize
 
 	super initialize.
-	addresses := OrderedCollection new.! !
+	addresses := Set new.! !
 
 "-- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- "!
 
-!classDefinition: 'Customer class' category: 'CustomerImporter'!
+!classDefinition: 'Customer class' category: #CustomerImporter!
 Customer class
 	instanceVariableNames: ''!
 
@@ -188,30 +228,50 @@ importCustomers
 	! !
 
 
-!classDefinition: #DataBaseSession category: 'CustomerImporter'!
+!classDefinition: #DataBaseSession category: #CustomerImporter!
 Object subclass: #DataBaseSession
-	instanceVariableNames: 'configuration tables id'
+	instanceVariableNames: 'configuration tables id inTransaction closed'
 	classVariableNames: ''
 	poolDictionaries: ''
 	category: 'CustomerImporter'!
 
-!DataBaseSession methodsFor: 'transaction management' stamp: 'HAW 5/22/2022 00:19:29'!
+!DataBaseSession methodsFor: 'transaction management' stamp: 'HAW 11/14/2023 08:52:25'!
 beginTransaction
 
-	! !
+	inTransaction := true.! !
 
-!DataBaseSession methodsFor: 'transaction management' stamp: 'HAW 5/22/2022 19:17:36'!
+!DataBaseSession methodsFor: 'transaction management' stamp: 'HAW 11/14/2023 08:52:18'!
 commit
 
-	(tables at: Customer ifAbsent: [#()]) do: [ :aCustomer | self persistAddressesOf: aCustomer ]
-	! !
+	inTransaction := false.! !
 
 
-!DataBaseSession methodsFor: 'closing' stamp: 'HAW 5/22/2022 00:19:29'!
+!DataBaseSession methodsFor: 'closing' stamp: 'HAW 11/14/2023 08:52:30'!
 close
 
-	! !
+	closed := true.! !
 
+
+!DataBaseSession methodsFor: 'persistence - private' stamp: 'HAW 11/14/2023 08:49:30'!
+assertCanUseDatabase
+
+	self assertIsOpen.
+	self assertInTransaction ! !
+
+!DataBaseSession methodsFor: 'persistence - private' stamp: 'HAW 11/14/2023 08:48:43'!
+assertInTransaction
+
+	inTransaction ifFalse: [ self error: 'Not in transaction' ].! !
+
+!DataBaseSession methodsFor: 'persistence - private' stamp: 'HAW 11/14/2023 08:48:16'!
+assertIsOpen
+
+	closed ifTrue: [ self error: 'Connection with database closed' ].! !
+
+!DataBaseSession methodsFor: 'persistence - private' stamp: 'HAW 11/14/2023 09:09:07'!
+assertTypeIsPersisted: aType
+
+	(configuration includes: aType) ifFalse: [ self error: 'Object of type ', aType name, ' are not configured to be persisted' ].! !
 
 !DataBaseSession methodsFor: 'persistence - private' stamp: 'HAW 5/22/2022 00:19:29'!
 defineIdOf: anObject
@@ -223,24 +283,46 @@ delay
 
 	(Delay forMilliseconds: 100) wait! !
 
-!DataBaseSession methodsFor: 'persistence - private' stamp: 'HAW 5/22/2022 19:29:06'!
-objectsOfType: aType
+!DataBaseSession methodsFor: 'persistence - private' stamp: 'HAW 11/14/2023 08:58:59'!
+isRelationToPersist: possibleRelation
 
-	^ tables at: aType ifAbsent: [ #() ]! !
+	^ possibleRelation class = Set! !
 
-!DataBaseSession methodsFor: 'persistence - private' stamp: 'HAW 5/22/2022 00:19:29'!
-persistAddressesOf: anObjectWithAddresses
+!DataBaseSession methodsFor: 'persistence - private' stamp: 'HAW 11/14/2023 08:58:59'!
+persistPossibleRelationOf: anObject at: anInstVarOffset
 
-	anObjectWithAddresses addresses do: [ :anAddress | self persist: anAddress ]
-	! !
+	| possibleRelation |
+		
+	possibleRelation := anObject instVarAt: anInstVarOffset.
+	(self isRelationToPersist: possibleRelation) ifTrue: [ self persistRelationOf: anObject at: anInstVarOffset with: possibleRelation ]! !
+
+!DataBaseSession methodsFor: 'persistence - private' stamp: 'HAW 11/14/2023 08:58:03'!
+persistRelationOf: anObject at: anInstVarOffset with: aRelation
+
+	| persistentRelation |
+	
+	persistentRelation := PersistentSet on: self from: aRelation.
+	anObject instVarAt: anInstVarOffset put: persistentRelation! !
+
+!DataBaseSession methodsFor: 'persistence - private' stamp: 'HAW 11/14/2023 08:58:34'!
+persistRelationsOf: anObject
+
+	anObject class instVarNamesAndOffsetsDo: [ :anInstVarName :anInstVarOffset | self persistPossibleRelationOf: anObject at: anInstVarOffset]! !
+
+!DataBaseSession methodsFor: 'persistence - private' stamp: 'HAW 11/14/2023 09:06:24'!
+tableOfType: aType
+
+	^ tables at: aType ifAbsentPut: [ Set new ]! !
 
 
-!DataBaseSession methodsFor: 'initialization' stamp: 'HAW 5/22/2022 00:19:29'!
+!DataBaseSession methodsFor: 'initialization' stamp: 'HAW 11/14/2023 08:44:19'!
 initializeFor: aConfiguration
 
 	configuration := aConfiguration.
 	tables := Dictionary new.
-	id := 0.! !
+	id := 0.
+	inTransaction := false.
+	closed := false.! !
 
 
 !DataBaseSession methodsFor: 'id' stamp: 'HAW 5/22/2022 00:19:29'!
@@ -250,35 +332,43 @@ newIdFor: anObject
 	^id! !
 
 
-!DataBaseSession methodsFor: 'persistance' stamp: 'HAW 5/22/2022 00:19:29'!
+!DataBaseSession methodsFor: 'persistance' stamp: 'HAW 11/14/2023 09:06:24'!
 persist: anObject
 
 	| table |
 
+	self assertCanUseDatabase.
+	self assertTypeIsPersisted: anObject class.
 	self delay.
-	table := tables at: anObject class ifAbsentPut: [ Set new ].
-
+	
+	table := self tableOfType: anObject class.
 	self defineIdOf: anObject.
 	table add: anObject.
+	self persistRelationsOf: anObject.
+! !
 
-	(anObject isKindOf: Customer) ifTrue: [ self persistAddressesOf: anObject ].! !
 
-
-!DataBaseSession methodsFor: 'selecting' stamp: 'HAW 5/22/2022 19:29:06'!
+!DataBaseSession methodsFor: 'selecting' stamp: 'HAW 11/14/2023 09:06:56'!
 select: aCondition ofType: aType
 
+	self assertCanUseDatabase.
+	self assertTypeIsPersisted: aType.
 	self delay.
-	^(self objectsOfType: aType) select: aCondition ! !
+	
+	^(self tableOfType: aType) select: aCondition ! !
 
-!DataBaseSession methodsFor: 'selecting' stamp: 'HAW 5/22/2022 19:29:06'!
+!DataBaseSession methodsFor: 'selecting' stamp: 'HAW 11/14/2023 09:07:12'!
 selectAllOfType: aType
 
+	self assertCanUseDatabase.
+	self assertTypeIsPersisted: aType.
 	self delay.
-	^(self objectsOfType: aType) copy ! !
+	
+	^(self tableOfType: aType) copy ! !
 
 "-- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- "!
 
-!classDefinition: 'DataBaseSession class' category: 'CustomerImporter'!
+!classDefinition: 'DataBaseSession class' category: #CustomerImporter!
 DataBaseSession class
 	instanceVariableNames: ''!
 
